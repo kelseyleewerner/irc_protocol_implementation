@@ -5,7 +5,7 @@ import threading
 HOST = '127.0.0.1'
 PORT = 2787
 
-nickname = input("Choose your nickname: ")
+nickname = input('Choose your nickname: ')
 
 # RENAME TO CLIENT SOCKET
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,7 +21,7 @@ def receive():
             else:
                 print(message)
         except:
-            print("An error!")
+            print('An error!')
             client.close() 
             break
 

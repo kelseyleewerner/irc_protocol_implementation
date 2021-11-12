@@ -9,13 +9,24 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen(1)
 
+# List of TCP connections to different clients
+# Each connection in the list is a dictionary with the following format:
+# {
+#     'user_name': String,
+#     'socket': Socket Object 
+# }
 clients = []
-nicknames = []
 
 # Broadcast a message to all clients
 def broadcast(message):
     for client in clients:
-        client.send(message)
+        client['socket'].send(message)
+
+# find a specific socket in the list of client TCP connections
+def find_client(lst, value):
+    for index, dic in enumerate(lst):
+        if dic['user_name'] == value:
+            return index
 
 # TODO: rename
 # This is what happens in an individual thread that listens for client messages and then forwards them
@@ -23,18 +34,16 @@ def handle(client):
     while True:
         try:
             # gets message from client and forwards it to everyone
-            message = client.recv(1024)
+            message = client['socket'].recv(1024)
             broadcast(message)
         except:
             # TODO: this won't work this way need to redo for graceful failure or maybe kind of keep
             # if error detected, deletes client from clients array and closes connection with client
             # thread will close once execution is done
-            index = clients.index(client)
-            clients.remove(client)
+            index = find_client(clients, client['user_name'])
+            clients.pop(index)
             client.close()
-            nickname = nicknames[index]
-            broadcast("{} left!".format(nickname).encode())
-            nicknames.remove(nickname)
+            broadcast('{} left!'.format(client['user_name']).encode())
             break
 
 # listening for tcp connections
@@ -47,24 +56,20 @@ def receive():
         # TODO: refactor nickname stuff
         client.send('NICK'.encode())
         # server receives chat name from client as part of initializing connection
-        nickname = client.recv(1024).decode()
-        # refactor data object, get rid of nicknames list
-        nicknames.append(nickname)
-        clients.append(client)
+        chat_name = client.recv(1024).decode()
+        connection = {
+            'user_name': chat_name,
+            'socket': client 
+        }
+        # Add new socket to list of connected clients
+        clients.append(connection)
 
-        # notes for refactor
-        # blah = {
-        #     client_objet: client,
-        #     chatname: nickname
-        # }
-        # clients.append(blah)
-
-        print("Nickname is {}".format(nickname))
-        broadcast("{} joined!".format(nickname).encode())
-        client.send("Connected to server!".encode())
+        print('Nickname is {}'.format(connection['user_name']))
+        broadcast('{} joined!'.format(connection['user_name']).encode())
+        connection['socket'].send('Connected to server!'.encode())
 
         # creating a thread for each client TCP connection
-        thread = threading.Thread(target=handle, args=(client,))
+        thread = threading.Thread(target=handle, args=(connection,))
         thread.start()
 
 # Running server and catching all unexpected/unhandled errors
