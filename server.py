@@ -53,10 +53,14 @@ def receive():
         client, address = server.accept()
         print('Connected with {}'.format(str(address)))
 
-        # TODO: refactor nickname stuff
-        client.send('NICK'.encode())
-        # server receives chat name from client as part of initializing connection
-        chat_name = client.recv(1024).decode()
+        # server must receive user name from client as part of initializing connection
+        name_message = client.recv(1024).decode()
+        name_message = name_message.split(':')
+        
+    # IMPLEMENT ERROR CHECKING FOR DUPE NAME OR INCORRECT MESSAGE (UNAUTHORIZED USER)
+
+
+        chat_name = name_message[-1]
         connection = {
             'user_name': chat_name,
             'socket': client 
@@ -64,7 +68,7 @@ def receive():
         # Add new socket to list of connected clients
         clients.append(connection)
 
-        print('Nickname is {}'.format(connection['user_name']))
+        print('Username is {}'.format(connection['user_name']))
         broadcast('{} joined!'.format(connection['user_name']).encode())
         connection['socket'].send('Connected to server!'.encode())
 
