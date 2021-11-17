@@ -1,5 +1,6 @@
 import socket
 import threading
+import utilities
 
 HOST = '127.0.0.1'
 PORT = 2787
@@ -46,7 +47,14 @@ def handle(connection):
     # Error check client message before adding client to list of connected clients
     setting_user_name = True
     while setting_user_name:
-        if command != 'NAME':
+        command_check = utilities.validate_command_semantics(command)
+        if command_check != True:
+            connection.send(command_check.encode())
+            name_message = connection.recv(1024).decode()
+            name_message = name_message.split(':')
+            command = name_message[0]
+            chat_name = name_message[-1]
+        elif command != 'NAME':
             connection.send('ERROR:106:Client not registered with server'.encode())
             name_message = connection.recv(1024).decode()
             name_message = name_message.split(':')
@@ -71,14 +79,31 @@ def handle(connection):
 
     while True:
         try:
-            # gets message from client and forwards it to everyone
-            message = client['socket'].recv(1024)
-            broadcast(message)
-        except:
+            message = client['socket'].recv(1024).decode()
+            message = message.split(':')
+            command = message[0]
+
+            match command:
+                case 'ERROR':
+                    error_code = message[1]
+                    error_msg = message[-1]
+                    print('{} Error: {}'.format(error_code, error_msg))
+                case _:
+                    # TODO: replace default case with unrecognized command error sent to client once have more implemented
+                    message = 'ERROR:100:Command is not included in the list of approved commands'
+                    client['socket'].send(message.encode())
+
+                    # gets message from client and forwards it to everyone
+                    # temp_msg = "WHYWHYWHWYWHWYWHWY"
+                    # broadcast(temp_msg.encode())
+        except Exception as E:
             # TODO: this won't work this way need to redo for graceful failure or maybe kind of keep
             # if error detected, deletes client from clients array and closes connection with client
             # thread will close once execution is done
             # TODO: need to test that can add user w same name after that user leaves to check that they are correctly removed
+            
+            print(E)
+            
             index = find_client(clients, client['user_name'])
             clients.pop(index)
             client['socket'].close()

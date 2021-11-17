@@ -22,9 +22,10 @@ def listen_for_message():
                     error_msg = message[-1]
                     print('{} Error: {}'.format(error_code, error_msg))
                 case _:
-                # final default case should probably be an error that command is wrong
-                    print(message)
-        except:
+                    message = 'ERROR:100:Command is not included in the list of approved commands'
+                    server.send(message.encode())
+        except Exception as E:
+            print(E)
             print('An error!')
             server.close() 
             break
