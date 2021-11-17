@@ -37,7 +37,7 @@ def find_client(lst, value):
 
 # TODO: rename
 # This is what happens in an individual thread that listens for client messages and then forwards them
-def handle(connection):
+def message_handler(connection):
     # server must receive user name from client as part of initializing connection
     name_message = connection.recv(1024).decode()
     name_message = name_message.split(':')
@@ -48,8 +48,15 @@ def handle(connection):
     setting_user_name = True
     while setting_user_name:
         command_check = utilities.validate_command_semantics(command)
+        param_check = utilities.validate_param_semantics(chat_name)
         if command_check != True:
             connection.send(command_check.encode())
+            name_message = connection.recv(1024).decode()
+            name_message = name_message.split(':')
+            command = name_message[0]
+            chat_name = name_message[-1]
+        elif param_check != True:
+            connection.send(param_check.encode())
             name_message = connection.recv(1024).decode()
             name_message = name_message.split(':')
             command = name_message[0]
@@ -118,7 +125,7 @@ def listen_for_connect_reqs():
         print('Connected with {}'.format(str(address)))
 
         # creating a thread for each client TCP connection
-        thread = threading.Thread(target=handle, args=(connection,))
+        thread = threading.Thread(target=message_handler, args=(connection,))
         thread.start()
 
 # Running server and catching all unexpected/unhandled errors
