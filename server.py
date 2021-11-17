@@ -8,6 +8,7 @@ PORT = 2787
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen(1)
+print('IRC Server is listening...')
 
 # List of TCP connections to different clients
 # Each connection in the list is a dictionary with the following format:
@@ -24,7 +25,7 @@ def broadcast(message):
 
 # find a specific socket in the list of client TCP connections
 # Returns connection object if user is found in list
-# Return False if lst is empty or if user not found in list
+# Return -1 if lst is empty or if user not found in list
 def find_client(lst, value):
     if not lst:
         return -1
@@ -45,9 +46,10 @@ def handle(client):
             # TODO: this won't work this way need to redo for graceful failure or maybe kind of keep
             # if error detected, deletes client from clients array and closes connection with client
             # thread will close once execution is done
+            # TODO: need to test that can add user w same name after that user leaves to check that they are correctly removed
             index = find_client(clients, client['user_name'])
             clients.pop(index)
-            client.close()
+            client['socket'].close()
             broadcast('{} left!'.format(client['user_name']).encode())
             break
 
@@ -60,36 +62,21 @@ def receive():
 
         # server must receive user name from client as part of initializing connection
         name_message = client.recv(1024).decode()
-
-        print("ORIGINAL MESSAGE")
-        print(name_message)
-
         name_message = name_message.split(':')
         command = name_message[0]
         chat_name = name_message[-1]
         
         setting_user_name = True
         while setting_user_name:
-
-            print("ENTERING USER NAME LOOP")
-
             if command != 'NAME':
                 client.send('ERROR:106:Client not registered with server'.encode())
                 name_message = client.recv(1024).decode()
-
-                print("ERROR MESSAGE 1")
-                print(name_message)
-
                 name_message = name_message.split(':')
                 command = name_message[0]
                 chat_name = name_message[-1]
             elif find_client(clients, chat_name) != -1:
                 client.send('ERROR:105:Username already in use'.encode())
                 name_message = client.recv(1024).decode()
-
-                print("ERROR MESSAGE 2")
-                print(name_message)
-
                 name_message = name_message.split(':')
                 command = name_message[0]
                 chat_name = name_message[-1]
@@ -103,8 +90,8 @@ def receive():
         # Add new socket to list of connected clients
         clients.append(connection)
 
-        print('Username is {}'.format(connection['user_name']))
-        broadcast('{} joined!'.format(connection['user_name']).encode())
+        print('New User: {}'.format(connection['user_name']))
+        broadcast('{} has joined IRC!'.format(connection['user_name']).encode())
         connection['socket'].send('Connected to server!'.encode())
 
         # creating a thread for each client TCP connection

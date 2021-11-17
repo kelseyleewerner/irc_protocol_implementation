@@ -13,44 +13,18 @@ server.connect((HOST, PORT))
 def listen_for_message():
     while True:
         try:
-# if receive either username error, then re-enter username info
             message = server.recv(1024).decode()
-
-            print("RECEIVED FROM SERVER")
-            print(message)
-
             message = message.split(':')
             command = message[0]
-
             match command:
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
-
-                    print('ERROR CODE')
-                    print(error_code)
-
-                    match error_code:
-                        case '105'|'106':
-                            print(error_msg, flush=True)
-                            print('Please input a new username: ', end='')
-                            user_name = input()
-                            print('')
-                            message = 'NAME:{}'.format(user_name)
-
-                            print("ERROR RESPONSE MESSAGE")
-                            print(message)
-
-                            server.send(message.encode())
-                        case _:
-                            print(error_msg)
+                    print('{} Error: {}'.format(error_code, error_msg))
                 case _:
+                # final default case should probably be an error that command is wrong
                     print(message)
-
-            print("REENTERING LOOP")
-
-        except Exception as e:
-            print(e)
+        except:
             print('An error!')
             server.close() 
             break
@@ -59,7 +33,7 @@ def listen_for_message():
 # sending messages
 def send_message():
     while True:
-        message = '{}: {}'.format(user_name, input(''))
+        message = input('')
         server.send(message.encode())
 
 # spinning up client and catching all unexpected/unhandled errors
@@ -68,14 +42,10 @@ try:
     listening_thread.start()
 
     # Create unique user name and initiate one-way handshake with server
-    user_name = input('Please input your username: ')
-    print('')
-    message = 'NAME:{}'.format(user_name)
-
-    print("FIRST MESSAGE")
-    print(message)
-
-    server.send(message.encode())
+    # User must format input as NAME:username
+    print('Welcome to IRC!')
+    user_name_message = input('')
+    server.send(user_name_message.encode())
 
     sending_thread = threading.Thread(target=send_message)
     sending_thread.start()
