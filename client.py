@@ -1,5 +1,6 @@
 import socket
 import threading
+import utilities
 
 # TODO: replace this with AWS host
 HOST = '127.0.0.1'
@@ -16,6 +17,12 @@ def listen_for_message():
             message = server.recv(1024).decode()
             message = message.split(':')
             command = message[0]
+
+            command_check = utilities.validate_command_semantics(command)
+            if command_check != True:
+                server.send(command_check.encode())
+                continue
+
             match command:
                 case 'ERROR':
                     error_code = message[1]

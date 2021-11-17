@@ -75,7 +75,7 @@ def handle(connection):
     }
     # Add new socket to list of connected clients
     clients.append(client)
-    print('New User: {}'.format(client['user_name']))
+    print('New User: {}'.format(client['user_name'])) 
 
     while True:
         try:
@@ -83,19 +83,19 @@ def handle(connection):
             message = message.split(':')
             command = message[0]
 
+            command_check = utilities.validate_command_semantics(command)
+            if command_check != True:
+                client['socket'].send(command_check.encode())
+                continue
+
             match command:
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
                     print('{} Error: {}'.format(error_code, error_msg))
                 case _:
-                    # TODO: replace default case with unrecognized command error sent to client once have more implemented
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     client['socket'].send(message.encode())
-
-                    # gets message from client and forwards it to everyone
-                    # temp_msg = "WHYWHYWHWYWHWYWHWY"
-                    # broadcast(temp_msg.encode())
         except Exception as E:
             # TODO: this won't work this way need to redo for graceful failure or maybe kind of keep
             # if error detected, deletes client from clients array and closes connection with client
