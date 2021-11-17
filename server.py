@@ -36,7 +36,39 @@ def find_client(lst, value):
 
 # TODO: rename
 # This is what happens in an individual thread that listens for client messages and then forwards them
-def handle(client):
+def handle(connection):
+    # server must receive user name from client as part of initializing connection
+    name_message = connection.recv(1024).decode()
+    name_message = name_message.split(':')
+    command = name_message[0]
+    chat_name = name_message[-1]
+
+    # Error check client message before adding client to list of connected clients
+    setting_user_name = True
+    while setting_user_name:
+        if command != 'NAME':
+            connection.send('ERROR:106:Client not registered with server'.encode())
+            name_message = connection.recv(1024).decode()
+            name_message = name_message.split(':')
+            command = name_message[0]
+            chat_name = name_message[-1]
+        elif find_client(clients, chat_name) != -1:
+            connection.send('ERROR:105:Username already in use'.encode())
+            name_message = connection.recv(1024).decode()
+            name_message = name_message.split(':')
+            command = name_message[0]
+            chat_name = name_message[-1]
+        else:
+            setting_user_name = False
+
+    client = {
+        'user_name': chat_name,
+        'socket': connection
+    }
+    # Add new socket to list of connected clients
+    clients.append(client)
+    print('New User: {}'.format(client['user_name']))
+
     while True:
         try:
             # gets message from client and forwards it to everyone
@@ -54,45 +86,11 @@ def handle(client):
             break
 
 # listening for tcp connections
-def receive():
+def listen_for_connect_reqs():
     while True:
         # server accepts connection from client
-        client, address = server.accept()
+        connection, address = server.accept()
         print('Connected with {}'.format(str(address)))
-
-        # server must receive user name from client as part of initializing connection
-        name_message = client.recv(1024).decode()
-        name_message = name_message.split(':')
-        command = name_message[0]
-        chat_name = name_message[-1]
-        
-        setting_user_name = True
-        while setting_user_name:
-            if command != 'NAME':
-                client.send('ERROR:106:Client not registered with server'.encode())
-                name_message = client.recv(1024).decode()
-                name_message = name_message.split(':')
-                command = name_message[0]
-                chat_name = name_message[-1]
-            elif find_client(clients, chat_name) != -1:
-                client.send('ERROR:105:Username already in use'.encode())
-                name_message = client.recv(1024).decode()
-                name_message = name_message.split(':')
-                command = name_message[0]
-                chat_name = name_message[-1]
-            else:
-                setting_user_name = False
-
-        connection = {
-            'user_name': chat_name,
-            'socket': client 
-        }
-        # Add new socket to list of connected clients
-        clients.append(connection)
-
-        print('New User: {}'.format(connection['user_name']))
-        broadcast('{} has joined IRC!'.format(connection['user_name']).encode())
-        connection['socket'].send('Connected to server!'.encode())
 
         # creating a thread for each client TCP connection
         thread = threading.Thread(target=handle, args=(connection,))
@@ -100,7 +98,7 @@ def receive():
 
 # Running server and catching all unexpected/unhandled errors
 try:
-    receive()
+    listen_for_connect_reqs()
 except:
     print('Unexpected Server Error: Connection has closed')
     server.close()
