@@ -133,11 +133,21 @@ def message_handler(connection):
                     # Send confirmation message to client
                     client['socket'].send('JOIN_RESPONSE:{}'.format(room_name).encode())
 
+                case 'ROOMS':
+                    if not chat_rooms:
+                        client['socket'].send('ROOMS_RESPONSE: '.encode())
+                    else:
+                        rooms = []
+                        for room in chat_rooms:
+                            rooms.append(room['room_name'])
+                        rooms = ' '.join(rooms)
+                        client['socket'].send('ROOMS_RESPONSE:{}'.format(rooms).encode())
+
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
                     print('{} Error: {}'.format(error_code, error_msg))
-                    
+
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     client['socket'].send(message.encode())

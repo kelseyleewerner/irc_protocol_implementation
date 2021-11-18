@@ -33,6 +33,17 @@ def listen_for_message():
                         continue
                     print('You are a member of {}'.format(room_name))
 
+                case 'ROOMS_RESPONSE':
+                    rooms = message[-1]
+
+                    if rooms == ' ':
+                        print('There are no chat rooms')
+                    else:
+                       rooms = rooms.split(' ')
+                       print('Chat Rooms:')
+                       for room in rooms:
+                           print(room)
+
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
