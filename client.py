@@ -24,10 +24,20 @@ def listen_for_message():
                 continue
 
             match command:
+                case 'JOIN_RESPONSE':
+                    room_name = message[-1]
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+                    print('You are a member of {}'.format(room_name))
+
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
                     print('{} Error: {}'.format(error_code, error_msg))
+
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     server.send(message.encode())
