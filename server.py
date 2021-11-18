@@ -19,6 +19,14 @@ print('IRC Server is listening...')
 # }
 clients = []
 
+# List of chat rooms
+# Each room in the list is a dictionary with the following format:
+# {
+#     'room_name': String,
+#     'members': String[]
+# }
+chat_rooms = []
+
 # Broadcast a message to all clients
 def broadcast(message):
     for client in clients:
@@ -96,6 +104,36 @@ def message_handler(connection):
                 continue
 
             match command:
+                case 'JOIN':
+                    room_name = message[-1]
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        client['socket'].send(param_check.encode())
+                        continue
+                    
+                    # If room already in list of chat rooms, add user to the existing room
+                    create_room = True
+                    for room in chat_rooms:
+                        if room['room_name'] == room_name:
+                            # Verify user is not already in room, so duplicate user_names aren't added to members list
+                            if client['user_name'] not in room['members']:
+                                room['members'].append(client['user_name'])
+                            create_room = False
+                            break
+                    
+                    # If room is not already in list of rooms, create new room
+                    if create_room:
+                        new_room = {
+                            'room_name': room_name,
+                            'members': [client['user_name']]
+                        }
+                        chat_rooms.append(new_room)
+
+                    print('ROOMS')
+                    print(chat_rooms)
+
+
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
@@ -113,6 +151,12 @@ def message_handler(connection):
             
             index = find_client(clients, client['user_name'])
             clients.pop(index)
+
+            # TODO: should i remove users from a chat room when they leave irc?
+            for room in chat_rooms:
+                if client['user_name'] in room['members']:
+                    room['members'].remove(client['user_name'])
+
             client['socket'].close()
             broadcast('{} left!'.format(client['user_name']).encode())
             break
