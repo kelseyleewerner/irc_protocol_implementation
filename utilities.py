@@ -6,7 +6,7 @@ def validate_command_semantics(command):
         return 'ERROR:103:Command contains spaces'
     return True
 
-# Verify that parameter have the correct semantics
+# Verify that parameters have the correct semantics
 # Returns True if parameter is valid
 # Returns String with error message if parameter violates a rule
 def validate_param_semantics(param):
@@ -14,4 +14,13 @@ def validate_param_semantics(param):
         return 'ERROR:104:Parameter contains spaces'
     elif len(param) > 50:
         return 'ERROR:101:Parameter has exceeded allowed value of 50 characters'
+    return True
+
+
+# Verify that payload has the correct semantics
+# Returns True if payload is valid
+# Returns String with error message if payload violates a rule
+def validate_payload_semantics(payload):
+    if len(payload) > 500:
+        return 'ERROR:102:Payload has exceeded allowed value of 500 characters'
     return True

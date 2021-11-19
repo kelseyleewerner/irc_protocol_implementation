@@ -35,7 +35,6 @@ def listen_for_message():
 
                 case 'ROOMS_RESPONSE':
                     rooms = message[-1]
-
                     if rooms == ' ':
                         print('There are no chat rooms')
                     else:
@@ -47,10 +46,6 @@ def listen_for_message():
                 case 'USERS_RESPONSE':
                     room_name = message[1]
                     members = message[-1]
-
-                    print('ORIGINAL MEMBERS')
-                    print(members)
-
                     # Validate that room name is correctly formatted
                     param_check = utilities.validate_param_semantics(room_name)
                     if param_check != True:
@@ -61,13 +56,48 @@ def listen_for_message():
                         print('There are no members of {}'.format(room_name))
                     else:
                         members = members.split(' ')
-
-                        print('MEMBERS AFTER SPLIT')
-                        print(members)
-
                         print('Members of {}:'.format(room_name))
                         for member in members:
                             print(member)
+
+                case 'LEAVE_RESPONSE':
+                    room_name = message[-1]
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    print('You are no longer a member of {}'.format(room_name))
+
+                case 'MESSAGE':
+                    room_name = message[1]
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    sender = message[2]
+                    # Validate that message sender is correctly formatted
+                    param_check = utilities.validate_param_semantics(sender)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    if len(message) > 4:
+                        message_body = ':'.join(message[3:])
+                    else:
+                        message_body = message[3]
+                    # Validate that message body is correctly formatted
+                    payload_check = utilities.validate_payload_semantics(message_body)
+                    if payload_check != True:
+                        server.send(payload_check.encode())
+                        continue
+
+                    print('Room: {}'.format(room_name))
+                    print('User: {}'.format(sender))
+                    print(message_body)
 
                 case 'ERROR':
                     error_code = message[1]
@@ -75,6 +105,9 @@ def listen_for_message():
                         case '107':
                             room_name = message[2]
                             print("{} Error: '{}' room does not exist".format(error_code, room_name))
+                        case '108':
+                            room_name = message[2]
+                            print("{} Error: You cannot post to '{}' when you are not a member".format(error_code, room_name))
                         case _:
                             error_msg = message[-1]
                             print('{} Error: {}'.format(error_code, error_msg))
