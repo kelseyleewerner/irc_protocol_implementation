@@ -95,6 +95,10 @@ def message_handler(connection):
     while True:
         try:
             message = client['socket'].recv(1024).decode()
+
+            print('ORIGINAL MESSAGE')
+            print(message)
+
             message = message.split(':')
             command = message[0]
 
@@ -142,6 +146,37 @@ def message_handler(connection):
                             rooms.append(room['room_name'])
                         rooms = ' '.join(rooms)
                         client['socket'].send('ROOMS_RESPONSE:{}'.format(rooms).encode())
+
+                case 'USERS':
+                    room_name = message[-1]
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        client['socket'].send(param_check.encode())
+                        continue
+
+                    if not chat_rooms:
+                        client['socket'].send('ERROR:107:{}:This chat room does not exist'.format(room_name).encode())
+                    else:
+                        room_found = False
+                        room_index = 0
+                        for room in chat_rooms:
+                            if room['room_name'] == room_name:
+                                room_found = True
+                                break
+                            room_index += 1
+                        
+                        if room_found:
+                            if not chat_rooms[room_index]['members']:
+                                client['socket'].send('USERS_RESPONSE:{}: '.format(room_name).encode())
+                            else:
+                                members = []
+                                for member in chat_rooms[room_index]['members']:
+                                    members.append(member)
+                                members = ' '.join(members)
+                                client['socket'].send('USERS_RESPONSE:{}:{}'.format(room_name, members).encode())
+                        else:
+                            client['socket'].send('ERROR:107:{}:This chat room does not exist'.format(room_name).encode())
 
                 case 'ERROR':
                     error_code = message[1]

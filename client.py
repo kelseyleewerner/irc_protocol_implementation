@@ -44,10 +44,40 @@ def listen_for_message():
                        for room in rooms:
                            print(room)
 
+                case 'USERS_RESPONSE':
+                    room_name = message[1]
+                    members = message[-1]
+
+                    print('ORIGINAL MEMBERS')
+                    print(members)
+
+                    # Validate that room name is correctly formatted
+                    param_check = utilities.validate_param_semantics(room_name)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    if members == ' ':
+                        print('There are no members of {}'.format(room_name))
+                    else:
+                        members = members.split(' ')
+
+                        print('MEMBERS AFTER SPLIT')
+                        print(members)
+
+                        print('Members of {}:'.format(room_name))
+                        for member in members:
+                            print(member)
+
                 case 'ERROR':
                     error_code = message[1]
-                    error_msg = message[-1]
-                    print('{} Error: {}'.format(error_code, error_msg))
+                    match error_code:
+                        case '107':
+                            room_name = message[2]
+                            print("{} Error: '{}' room does not exist".format(error_code, room_name))
+                        case _:
+                            error_msg = message[-1]
+                            print('{} Error: {}'.format(error_code, error_msg))
 
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
