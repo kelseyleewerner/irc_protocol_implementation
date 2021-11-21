@@ -99,6 +99,35 @@ def listen_for_message():
                     print('User: {}'.format(sender))
                     print(message_body)
 
+                case 'MESSAGE_USER':
+                    receiving_user = message[1]
+                    # Validate that receiving username is correctly formatted
+                    param_check = utilities.validate_param_semantics(receiving_user)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    sending_user = message[2]
+                    # Validate that sending username is correctly formatted
+                    param_check = utilities.validate_param_semantics(sending_user)
+                    if param_check != True:
+                        server.send(param_check.encode())
+                        continue
+
+                    if len(message) > 4:
+                        message_body = ':'.join(message[3:])
+                    else:
+                        message_body = message[3]
+                    # Validate that message body is correctly formatted
+                    payload_check = utilities.validate_payload_semantics(message_body)
+                    if payload_check != True:
+                        server.send(payload_check.encode())
+                        continue
+
+                    print('Message From: {}'.format(sending_user))
+                    print('Message To: {}'.format(receiving_user))
+                    print(message_body)
+
                 case 'ERROR':
                     error_code = message[1]
                     match error_code:
@@ -108,6 +137,9 @@ def listen_for_message():
                         case '108':
                             room_name = message[2]
                             print("{} Error: You cannot post to '{}' when you are not a member".format(error_code, room_name))
+                        case '109':
+                            member = message[2]
+                            print("{} Error: User '{}' does not exist".format(error_code, member))
                         case _:
                             error_msg = message[-1]
                             print('{} Error: {}'.format(error_code, error_msg))
@@ -126,6 +158,7 @@ def listen_for_message():
 def send_message():
     while True:
         message = input('')
+        print('')
         server.send(message.encode())
 
 # spinning up client and catching all unexpected/unhandled errors

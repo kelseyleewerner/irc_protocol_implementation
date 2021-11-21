@@ -239,6 +239,39 @@ def message_handler(connection):
                         else:
                             client['socket'].send('ERROR:107:{}:This chat room does not exist'.format(room_name).encode())
 
+                case 'MESSAGE_USER':
+                    target_user = message[1]
+                    # Validate that target username is correctly formatted
+                    param_check = utilities.validate_param_semantics(target_user)
+                    if param_check != True:
+                        client['socket'].send(param_check.encode())
+                        continue
+
+                    if len(message) > 3:
+                        message_body = ':'.join(message[2:])
+                    else:
+                        message_body = message[2]
+                        # Validate that message body is correctly formatted
+                        payload_check = utilities.validate_payload_semantics(message_body)
+                        if payload_check != True:
+                            client['socket'].send(payload_check.encode())
+                            continue
+
+                    client_found = False
+                    client_index = 0
+                    for connection in clients:
+                        if connection['user_name'] == target_user:
+                            client_found = True
+                            break
+                        client_index += 1
+
+                    if client_found:
+                        clients[client_index]['socket'].send('MESSAGE_USER:{}:{}:{}'.format(target_user, client['user_name'], message_body).encode())
+                        if client['user_name'] != clients[client_index]['user_name']:
+                            client['socket'].send('MESSAGE_USER:{}:{}:{}'.format(target_user, client['user_name'], message_body).encode())
+                    else:
+                        client['socket'].send('ERROR:109:{}:This user does not exist'.format(target_user).encode())                        
+
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
