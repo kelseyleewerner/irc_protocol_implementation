@@ -31,17 +31,18 @@ def listen_for_message():
                     if param_check != True:
                         server.send(param_check.encode())
                         continue
-                    print('You are a member of {}'.format(room_name))
+                    print('You are a member of {}\n'.format(room_name))
 
                 case 'ROOMS_RESPONSE':
                     rooms = message[-1]
                     if rooms == ' ':
-                        print('There are no chat rooms')
+                        print('There are no chat rooms\n')
                     else:
                        rooms = rooms.split(' ')
                        print('Chat Rooms:')
                        for room in rooms:
                            print(room)
+                       print('')
 
                 case 'USERS_RESPONSE':
                     room_name = message[1]
@@ -53,12 +54,13 @@ def listen_for_message():
                         continue
 
                     if members == ' ':
-                        print('There are no members of {}'.format(room_name))
+                        print('There are no members of {}\n'.format(room_name))
                     else:
                         members = members.split(' ')
                         print('Members of {}:'.format(room_name))
                         for member in members:
                             print(member)
+                        print('')
 
                 case 'LEAVE_RESPONSE':
                     room_name = message[-1]
@@ -68,7 +70,7 @@ def listen_for_message():
                         server.send(param_check.encode())
                         continue
 
-                    print('You are no longer a member of {}'.format(room_name))
+                    print('You are no longer a member of {}\n'.format(room_name))
 
                 case 'MESSAGE':
                     room_name = message[1]
@@ -98,6 +100,7 @@ def listen_for_message():
                     print('Room: {}'.format(room_name))
                     print('User: {}'.format(sender))
                     print(message_body)
+                    print('')
 
                 case 'MESSAGE_USER':
                     receiving_user = message[1]
@@ -127,29 +130,30 @@ def listen_for_message():
                     print('Message From: {}'.format(sending_user))
                     print('Message To: {}'.format(receiving_user))
                     print(message_body)
+                    print('')
 
                 case 'ERROR':
                     error_code = message[1]
                     match error_code:
                         case '107':
                             room_name = message[2]
-                            print("{} Error: '{}' room does not exist".format(error_code, room_name))
+                            print("{} Error: '{}' room does not exist\n".format(error_code, room_name))
                         case '108':
                             room_name = message[2]
-                            print("{} Error: You cannot post to '{}' when you are not a member".format(error_code, room_name))
+                            print("{} Error: You cannot post to '{}' when you are not a member\n".format(error_code, room_name))
                         case '109':
                             member = message[2]
-                            print("{} Error: User '{}' does not exist".format(error_code, member))
+                            print("{} Error: User '{}' does not exist\n".format(error_code, member))
                         case _:
                             error_msg = message[-1]
-                            print('{} Error: {}'.format(error_code, error_msg))
+                            print('{} Error: {}\n'.format(error_code, error_msg))
 
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     server.send(message.encode())
         except Exception as E:
             print(E)
-            print('An error!')
+            print('An error!\n')
             server.close() 
             break
 
@@ -168,12 +172,12 @@ try:
 
     # Create unique user name and initiate one-way handshake with server
     # User must format input as NAME:username
-    print('Welcome to IRC!')
+    print('Welcome to IRC!\n')
     user_name_message = input('')
     server.send(user_name_message.encode())
 
     sending_thread = threading.Thread(target=send_message)
     sending_thread.start()
 except:
-    print('Unexpected Client Error: Connection has closed')
+    print('Unexpected Client Error: Connection has closed\n')
     server.close()
