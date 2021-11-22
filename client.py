@@ -10,6 +10,131 @@ PORT = 2787
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.connect((HOST, PORT))
 
+connection_status = { 'alive': True }
+
+
+def send_message(server_socket, msg):
+    server_socket.send(msg.encode())
+
+
+def join_response_msg_handler(message):
+    room_name = message[-1]
+    # Validate that room name is correctly formatted
+    param_check = utilities.validate_param_semantics(room_name)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+    print('You are a member of {}\n'.format(room_name))
+
+
+def rooms_response_msg_handler(message):
+    rooms = message[-1]
+    if rooms == ' ':
+        print('There are no chat rooms\n')
+    else:
+        rooms = rooms.split(' ')
+        print('Chat Rooms:')
+        for room in rooms:
+            print(room)
+        print('')
+
+
+def users_response_msg_handler(message):
+    room_name = message[1]
+    members = message[-1]
+    # Validate that room name is correctly formatted
+    param_check = utilities.validate_param_semantics(room_name)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+
+    if members == ' ':
+        print('There are no members of {}\n'.format(room_name))
+    else:
+        members = members.split(' ')
+        print('Members of {}:'.format(room_name))
+        for member in members:
+            print(member)
+        print('')
+
+
+def leave_response_msg_handler(message):
+    room_name = message[-1]
+    # Validate that room name is correctly formatted
+    param_check = utilities.validate_param_semantics(room_name)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+    print('You are no longer a member of {}\n'.format(room_name))
+
+
+def chat_msg_handler(message):
+    room_name = message[1]
+    # Validate that room name is correctly formatted
+    param_check = utilities.validate_param_semantics(room_name)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+
+    sender = message[2]
+    # Validate that message sender is correctly formatted
+    param_check = utilities.validate_param_semantics(sender)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+
+    if len(message) > 4:
+        message_body = ':'.join(message[3:])
+    else:
+        message_body = message[3]
+    # Validate that message body is correctly formatted
+    payload_check = utilities.validate_payload_semantics(message_body)
+    if payload_check != True:
+        send_message(server, payload_check)
+        return
+
+    print('Room: {}'.format(room_name))
+    print('User: {}'.format(sender))
+    print(message_body)
+    print('')
+
+
+
+def private_msg_handler(message):
+    receiving_user = message[1]
+    # Validate that receiving username is correctly formatted
+    param_check = utilities.validate_param_semantics(receiving_user)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+
+    sending_user = message[2]
+    # Validate that sending username is correctly formatted
+    param_check = utilities.validate_param_semantics(sending_user)
+    if param_check != True:
+        send_message(server, param_check)
+        return
+
+    if len(message) > 4:
+        message_body = ':'.join(message[3:])
+    else:
+        message_body = message[3]
+    # Validate that message body is correctly formatted
+    payload_check = utilities.validate_payload_semantics(message_body)
+    if payload_check != True:
+        send_message(server, payload_check)
+        return
+
+    print('Message From: {}'.format(sending_user))
+    print('Message To: {}'.format(receiving_user))
+    print(message_body)
+    print('')
+
+
+
+
+
+
 # listening for chat messages and keepalive messages from server
 def listen_for_message():
     while True:
@@ -20,118 +145,22 @@ def listen_for_message():
 
             command_check = utilities.validate_command_semantics(command)
             if command_check != True:
-                server.send(command_check.encode())
+                send_message(server, command_check)
                 continue
 
             match command:
                 case 'JOIN_RESPONSE':
-                    room_name = message[-1]
-                    # Validate that room name is correctly formatted
-                    param_check = utilities.validate_param_semantics(room_name)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-                    print('You are a member of {}\n'.format(room_name))
-
+                    join_response_msg_handler(message)
                 case 'ROOMS_RESPONSE':
-                    rooms = message[-1]
-                    if rooms == ' ':
-                        print('There are no chat rooms\n')
-                    else:
-                       rooms = rooms.split(' ')
-                       print('Chat Rooms:')
-                       for room in rooms:
-                           print(room)
-                       print('')
-
+                    rooms_response_msg_handler(message)
                 case 'USERS_RESPONSE':
-                    room_name = message[1]
-                    members = message[-1]
-                    # Validate that room name is correctly formatted
-                    param_check = utilities.validate_param_semantics(room_name)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    if members == ' ':
-                        print('There are no members of {}\n'.format(room_name))
-                    else:
-                        members = members.split(' ')
-                        print('Members of {}:'.format(room_name))
-                        for member in members:
-                            print(member)
-                        print('')
-
+                    users_response_msg_handler(message)
                 case 'LEAVE_RESPONSE':
-                    room_name = message[-1]
-                    # Validate that room name is correctly formatted
-                    param_check = utilities.validate_param_semantics(room_name)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    print('You are no longer a member of {}\n'.format(room_name))
-
+                    leave_response_msg_handler(message)
                 case 'MESSAGE':
-                    room_name = message[1]
-                    # Validate that room name is correctly formatted
-                    param_check = utilities.validate_param_semantics(room_name)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    sender = message[2]
-                    # Validate that message sender is correctly formatted
-                    param_check = utilities.validate_param_semantics(sender)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    if len(message) > 4:
-                        message_body = ':'.join(message[3:])
-                    else:
-                        message_body = message[3]
-                    # Validate that message body is correctly formatted
-                    payload_check = utilities.validate_payload_semantics(message_body)
-                    if payload_check != True:
-                        server.send(payload_check.encode())
-                        continue
-
-                    print('Room: {}'.format(room_name))
-                    print('User: {}'.format(sender))
-                    print(message_body)
-                    print('')
-
+                    chat_msg_handler(message)
                 case 'MESSAGE_USER':
-                    receiving_user = message[1]
-                    # Validate that receiving username is correctly formatted
-                    param_check = utilities.validate_param_semantics(receiving_user)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    sending_user = message[2]
-                    # Validate that sending username is correctly formatted
-                    param_check = utilities.validate_param_semantics(sending_user)
-                    if param_check != True:
-                        server.send(param_check.encode())
-                        continue
-
-                    if len(message) > 4:
-                        message_body = ':'.join(message[3:])
-                    else:
-                        message_body = message[3]
-                    # Validate that message body is correctly formatted
-                    payload_check = utilities.validate_payload_semantics(message_body)
-                    if payload_check != True:
-                        server.send(payload_check.encode())
-                        continue
-
-                    print('Message From: {}'.format(sending_user))
-                    print('Message To: {}'.format(receiving_user))
-                    print(message_body)
-                    print('')
-
+                    private_msg_handler(message)
                 case 'ERROR':
                     error_code = message[1]
                     match error_code:
@@ -147,23 +176,29 @@ def listen_for_message():
                         case _:
                             error_msg = message[-1]
                             print('{} Error: {}\n'.format(error_code, error_msg))
-
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     server.send(message.encode())
         except Exception as E:
-            print(E)
-            print('An error!\n')
-            server.close() 
+            print('Unexpected Error: Connection has closed')
+            connection_status['alive'] = False
+            server.close()
             break
 
-
 # sending messages
-def send_message():
-    while True:
-        message = input('')
-        print('')
-        server.send(message.encode())
+def input_handler():
+    try:
+        while True:
+            message = input('')
+            print('')
+            if not connection_status['alive']:
+                print('CONNECTION DEAD IS TRUE AS EXCPECTED')
+                break
+            send_message(server, message)
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        connection_status['alive'] = False
+        server.close()
 
 # spinning up client and catching all unexpected/unhandled errors
 try:
@@ -175,10 +210,12 @@ try:
     print('Welcome to IRC!\n')
     user_name_message = input('')
     print('')
-    server.send(user_name_message.encode())
+    send_message(server, user_name_message)
 
-    sending_thread = threading.Thread(target=send_message)
+    sending_thread = threading.Thread(target=input_handler)
     sending_thread.start()
-except:
-    print('Unexpected Client Error: Connection has closed\n')
+except Exception as E:
+    print('Unexpected Error: Connection has closed')
+    connection_status['alive'] = False
     server.close()
+    

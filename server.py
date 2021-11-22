@@ -273,6 +273,7 @@ def message_handler(connection):
                 setting_user_name = False
 
     except Exception as E:
+        print('Unexpected Error: Connection has closed')
         print(E)
         connection.close()
         return
@@ -316,6 +317,7 @@ def message_handler(connection):
                     send_message(client['socket'], msg)
 
         except Exception as E:
+            print('Unexpected Error: Connection has closed')
             print(E)
             
             index = find_client(clients, client['user_name'])
@@ -343,6 +345,7 @@ def listen_for_connect_reqs():
 # Running server and catching all unexpected/unhandled errors
 try:
     listen_for_connect_reqs()
-except:
-    print('Unexpected Server Error: Connection has closed')
+except Exception as E:
+    print('Unexpected Error: Connection has closed')
+    print(E)
     server.close()
