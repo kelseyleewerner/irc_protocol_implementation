@@ -16,7 +16,6 @@ def validate_param_semantics(param):
         return 'ERROR:101:Parameter has exceeded allowed value of 50 characters'
     return True
 
-
 # Verify that payload has the correct semantics
 # Returns True if payload is valid
 # Returns String with error message if payload violates a rule

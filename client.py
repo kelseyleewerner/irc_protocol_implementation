@@ -174,6 +174,7 @@ try:
     # User must format input as NAME:username
     print('Welcome to IRC!\n')
     user_name_message = input('')
+    print('')
     server.send(user_name_message.encode())
 
     sending_thread = threading.Thread(target=send_message)
