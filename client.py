@@ -17,6 +17,10 @@ def send_message(server_socket, msg):
     server_socket.send(msg.encode())
 
 
+def close_connection():
+    connection_status['alive'] = False
+    server.close()
+
 def join_response_msg_handler(message):
     room_name = message[-1]
     # Validate that room name is correctly formatted
@@ -161,6 +165,9 @@ def listen_for_message():
                     chat_msg_handler(message)
                 case 'MESSAGE_USER':
                     private_msg_handler(message)
+                case 'QUIT':
+                    close_connection()
+                    break
                 case 'ERROR':
                     error_code = message[1]
                     match error_code:
@@ -178,11 +185,10 @@ def listen_for_message():
                             print('{} Error: {}\n'.format(error_code, error_msg))
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
-                    server.send(message.encode())
+                    send_message(server, message)
         except Exception as E:
             print('Unexpected Error: Connection has closed')
-            connection_status['alive'] = False
-            server.close()
+            close_connection()
             break
 
 # sending messages
@@ -192,13 +198,11 @@ def input_handler():
             message = input('')
             print('')
             if not connection_status['alive']:
-                print('CONNECTION DEAD IS TRUE AS EXCPECTED')
                 break
             send_message(server, message)
     except Exception as E:
         print('Unexpected Error: Connection has closed')
-        connection_status['alive'] = False
-        server.close()
+        close_connection()
 
 # spinning up client and catching all unexpected/unhandled errors
 try:
@@ -218,4 +222,3 @@ except Exception as E:
     print('Unexpected Error: Connection has closed')
     connection_status['alive'] = False
     server.close()
-    

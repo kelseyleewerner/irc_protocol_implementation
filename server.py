@@ -11,7 +11,7 @@ PORT = 2787
 # Each connection in the list is a dictionary with the following format:
 # {
 #     'user_name': String,
-#     'socket': Socket Object 
+#     'socket': Socket Object
 # }
 clients = []
 
@@ -31,20 +31,13 @@ server.listen(1)
 print('IRC Server is listening...')
 
 
-# Broadcast a message to all clients
-def broadcast(message):
-    for client in clients:
-        send_message(client['socket'], message)
-
-
-
 # find a specific socket in the list of client TCP connections
 # Returns connection object if user is found in list
 # Return -1 if lst is empty or if user not found in list
-def find_client(lst, user_name):
-    if not lst:
+def find_client(user_name):
+    if not clients:
         return -1
-    for index, dic in enumerate(lst):
+    for index, dic in enumerate(clients):
         if dic['user_name'] == user_name:
             return index
     return -1
@@ -74,6 +67,24 @@ def send_message(client_socket, msg):
     client_socket.send(msg.encode())
 
 
+def close_connection(client):
+    index = find_client(client['user_name'])
+    clients.pop(index)
+
+    for room in chat_rooms:
+        if client['user_name'] in room['members']:
+            room['members'].remove(client['user_name'])
+
+    client['socket'].close()
+    print('{} has left'.format(client['user_name']))
+
+
+def close_all_connections():
+    for client in clients:
+        send_message(client['socket'], 'QUIT')
+        client['socket'].close()
+
+
 def join_msg_handler(client, message):
     room_name = message[-1]
     # Validate that room name is correctly formatted
@@ -81,7 +92,7 @@ def join_msg_handler(client, message):
     if param_check != True:
         send_message(client['socket'], param_check)
         return
-    
+
     # If room already in list of chat rooms, add user to the existing room
     create_room = True
     for room in chat_rooms:
@@ -91,7 +102,7 @@ def join_msg_handler(client, message):
                 room['members'].append(client['user_name'])
             create_room = False
             break
-    
+
     # If room is not already in list of rooms, create new room
     if create_room:
         new_room = {
@@ -225,7 +236,7 @@ def private_msg_handler(client, message):
             send_message(client['socket'], payload_check)
             return
 
-    client_index = find_client(clients, target_user)
+    client_index = find_client(target_user)
     if client_index > -1:
         msg = 'MESSAGE_USER:{}:{}:{}'.format(target_user, client['user_name'], message_body)
         send_message(clients[client_index]['socket'], msg)
@@ -264,7 +275,7 @@ def message_handler(connection):
                 send_message(connection, msg)
                 name_message, command = receive_message(connection)
                 chat_name = name_message[-1]
-            elif find_client(clients, chat_name) != -1:
+            elif find_client(chat_name) != -1:
                 msg = 'ERROR:105:Username already in use'
                 send_message(connection, msg)
                 name_message, command = receive_message(connection)
@@ -308,6 +319,10 @@ def message_handler(connection):
                     chat_msg_handler(client, message)
                 case 'MESSAGE_USER':
                     private_msg_handler(client, message)
+                case 'QUIT':
+                    send_message(client['socket'], 'QUIT')
+                    close_connection(client)
+                    break
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
@@ -319,16 +334,7 @@ def message_handler(connection):
         except Exception as E:
             print('Unexpected Error: Connection has closed')
             print(E)
-            
-            index = find_client(clients, client['user_name'])
-            clients.pop(index)
-
-            for room in chat_rooms:
-                if client['user_name'] in room['members']:
-                    room['members'].remove(client['user_name'])
-
-            client['socket'].close()
-            broadcast('{} left!'.format(client['user_name']))
+            close_connection(client)
             break
 
 # listening for tcp connections
@@ -348,4 +354,5 @@ try:
 except Exception as E:
     print('Unexpected Error: Connection has closed')
     print(E)
+    close_all_connections()
     server.close()
