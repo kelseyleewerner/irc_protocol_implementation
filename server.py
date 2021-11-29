@@ -1,6 +1,8 @@
 import socket
 import threading
 import utilities
+import time
+from datetime import datetime, timedelta
 
 HOST = '127.0.0.1'
 PORT = 2787
@@ -11,7 +13,8 @@ PORT = 2787
 # Each connection in the list is a dictionary with the following format:
 # {
 #     'user_name': String,
-#     'socket': Socket Object
+#     'socket': Socket Object,
+#     'timestamp': datetime Object
 # }
 clients = []
 
@@ -249,6 +252,18 @@ def private_msg_handler(client, message):
 
 
 
+def sustain_connection(client):
+    try:
+        while True:
+            time.sleep(5)
+            msg = 'STILL_ALIVE'
+            send_message(client['socket'], msg)
+
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection(client)
+
+
 # TODO: rename
 # This is what happens in an individual thread that listens for client messages and then forwards them
 def message_handler(connection):
@@ -291,11 +306,15 @@ def message_handler(connection):
 
     client = {
         'user_name': chat_name,
-        'socket': connection
+        'socket': connection,
+        'timestamp': datetime.now()
     }
     # Add new socket to list of connected clients
     clients.append(client)
     print('New User: {}'.format(client['user_name']))
+
+    thread = threading.Thread(target=sustain_connection, args=(client,))
+    thread.start()
 
     while True:
         try:
@@ -307,6 +326,8 @@ def message_handler(connection):
                 continue
 
             match command:
+                case 'STILL_ALIVE':
+                    client['timestamp'] = datetime.now()
                 case 'JOIN':
                     join_msg_handler(client, message)
                 case 'ROOMS':
@@ -320,7 +341,8 @@ def message_handler(connection):
                 case 'MESSAGE_USER':
                     private_msg_handler(client, message)
                 case 'QUIT':
-                    send_message(client['socket'], 'QUIT')
+                    msg = 'QUIT'
+                    send_message(client['socket'], msg)
                     close_connection(client)
                     break
                 case 'ERROR':

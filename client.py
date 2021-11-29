@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta
 import socket
 import threading
 import utilities
+import time
+
 
 # TODO: replace this with AWS host
 HOST = '127.0.0.1'
@@ -10,7 +13,12 @@ PORT = 2787
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.connect((HOST, PORT))
 
-connection_status = { 'alive': True }
+connection_status = {
+    'alive': True,
+    'finalized': False,
+    'timestamp': datetime.now()
+}
+
 
 
 def send_message(server_socket, msg):
@@ -153,6 +161,9 @@ def listen_for_message():
                 continue
 
             match command:
+                case 'STILL_ALIVE':
+                    connection_status['timestamp'] = datetime.now()
+                    connection_status['finalized'] = True
                 case 'JOIN_RESPONSE':
                     join_response_msg_handler(message)
                 case 'ROOMS_RESPONSE':
@@ -204,6 +215,54 @@ def input_handler():
         print('Unexpected Error: Connection has closed')
         close_connection()
 
+def send_keep_alive():
+    try:
+        while not connection_status['finalized']:
+            if not connection_status['alive']:
+                return
+            time.sleep(2)
+
+        while True:
+            time.sleep(5)
+            if not connection_status['alive']:
+                break
+            
+            msg = 'STILL_ALIVE'
+            send_message(server, msg)
+
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection()
+
+
+def verify_keep_alive():
+    try:
+        alive_window = timedelta(seconds = 10)
+    
+        while not connection_status['finalized']:
+            if not connection_status['alive']:
+                return
+            time.sleep(2)
+
+        while True:
+            time.sleep(10)
+            if not connection_status['alive']:
+                break
+
+            window_start = datetime.now() - alive_window
+
+            if connection_status['timestamp'] < window_start:
+                print('Unexpected Error: Server is no longer online')
+                close_connection()
+                break
+
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection()
+
+
+
+
 # spinning up client and catching all unexpected/unhandled errors
 try:
     listening_thread = threading.Thread(target=listen_for_message)
@@ -218,6 +277,13 @@ try:
 
     sending_thread = threading.Thread(target=input_handler)
     sending_thread.start()
+
+    sending_thread = threading.Thread(target=send_keep_alive)
+    sending_thread.start()
+
+    sending_thread = threading.Thread(target=verify_keep_alive)
+    sending_thread.start()
+
 except Exception as E:
     print('Unexpected Error: Connection has closed')
     connection_status['alive'] = False
