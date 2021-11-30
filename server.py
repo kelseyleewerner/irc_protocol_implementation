@@ -14,7 +14,8 @@ PORT = 2787
 # {
 #     'user_name': String,
 #     'socket': Socket Object,
-#     'timestamp': datetime Object
+#     'timestamp': datetime Object,
+#     'alive': Boolean
 # }
 clients = []
 
@@ -71,6 +72,7 @@ def send_message(client_socket, msg):
 
 
 def close_connection(client):
+    client['alive'] = False
     index = find_client(client['user_name'])
     clients.pop(index)
 
@@ -252,16 +254,41 @@ def private_msg_handler(client, message):
 
 
 
-def sustain_connection(client):
+def send_keep_alive(client):
     try:
         while True:
-            time.sleep(5)
+            if not client['alive']:
+                break
             msg = 'STILL_ALIVE'
             send_message(client['socket'], msg)
+            time.sleep(5)
 
     except Exception as E:
         print('Unexpected Error: Connection has closed')
         close_connection(client)
+
+
+
+def verify_keep_alive(client):
+    try:
+        alive_window = timedelta(seconds = 10)
+
+        while True:
+            time.sleep(10)
+            if not client['alive']:
+                break
+
+            window_start = datetime.now() - alive_window
+
+            if client['timestamp'] < window_start:
+                print('Unexpected Error: Client is no longer online')
+                close_connection(client)
+                break
+
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection(client)
+
 
 
 # TODO: rename
@@ -307,14 +334,18 @@ def message_handler(connection):
     client = {
         'user_name': chat_name,
         'socket': connection,
-        'timestamp': datetime.now()
+        'timestamp': datetime.now(),
+        'alive': True
     }
     # Add new socket to list of connected clients
     clients.append(client)
     print('New User: {}'.format(client['user_name']))
 
-    thread = threading.Thread(target=sustain_connection, args=(client,))
+    thread = threading.Thread(target=send_keep_alive, args=(client,))
     thread.start()
+
+    sending_thread = threading.Thread(target=verify_keep_alive, args=(client,))
+    sending_thread.start()
 
     while True:
         try:

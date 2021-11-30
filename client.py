@@ -220,15 +220,13 @@ def send_keep_alive():
         while not connection_status['finalized']:
             if not connection_status['alive']:
                 return
-            time.sleep(2)
 
         while True:
-            time.sleep(5)
             if not connection_status['alive']:
                 break
-            
             msg = 'STILL_ALIVE'
             send_message(server, msg)
+            time.sleep(5)
 
     except Exception as E:
         print('Unexpected Error: Connection has closed')
