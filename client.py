@@ -5,8 +5,8 @@ import utilities
 import time
 
 
-# TODO: replace this with AWS host
-HOST = '127.0.0.1'
+
+HOST = '54.188.19.136'
 PORT = 2787
 
 # Create TCP connection with server
