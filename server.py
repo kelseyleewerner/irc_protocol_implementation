@@ -4,7 +4,7 @@ import utilities
 import time
 from datetime import datetime, timedelta
 
-HOST = '127.0.0.0'
+HOST = '0.0.0.0'
 PORT = 2787
 
 
@@ -86,7 +86,8 @@ def close_connection(client):
 
 def close_all_connections():
     for client in clients:
-        send_message(client['socket'], 'QUIT')
+        msg = 'QUIT'
+        send_message(client['socket'], msg)
         client['socket'].close()
 
 

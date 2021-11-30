@@ -215,18 +215,35 @@ def input_handler():
         print('Unexpected Error: Connection has closed')
         close_connection()
 
+
+def check_status():
+    while not connection_status['finalized']:
+        if not connection_status['alive']:
+            return True
+    return False
+
+def keep_alive_wait(seconds):
+    counter = 0
+    while (counter < seconds):
+        time.sleep(1)
+        counter += 1
+        if not connection_status['alive']:
+            return True
+    return False
+
+
+
 def send_keep_alive():
     try:
-        while not connection_status['finalized']:
-            if not connection_status['alive']:
-                return
+        if check_status():
+            return
 
         while True:
-            if not connection_status['alive']:
-                break
             msg = 'STILL_ALIVE'
             send_message(server, msg)
-            time.sleep(5)
+
+            if keep_alive_wait(5):
+                return
 
     except Exception as E:
         print('Unexpected Error: Connection has closed')
@@ -236,16 +253,13 @@ def send_keep_alive():
 def verify_keep_alive():
     try:
         alive_window = timedelta(seconds = 10)
-    
-        while not connection_status['finalized']:
-            if not connection_status['alive']:
-                return
-            time.sleep(2)
+        
+        if check_status():
+            return
 
         while True:
-            time.sleep(10)
-            if not connection_status['alive']:
-                break
+            if keep_alive_wait(10):
+                return
 
             window_start = datetime.now() - alive_window
 
