@@ -75,7 +75,7 @@ def send_keep_alive():
     
     # End program if unexpected error occurs
     except Exception as E:
-        print('Unexpected Error: Connection has closed')
+        print('Unexpected Error: Connection has closed and program is shutting down')
         close_connection()
 
 # Function verifies that STILL_ALIVE messages are being received from the server within the timeout window
@@ -103,7 +103,7 @@ def verify_keep_alive():
 
     # End program if unexpected error occurs
     except Exception as E:
-        print('Unexpected Error: Connection has closed')
+        print('Unexpected Error: Connection has closed and program is shutting down')
         close_connection()
 
 # ==============================================================================================
@@ -303,7 +303,7 @@ def listen_for_message():
 
         # End program if unexpected error occurs    
         except Exception as E:
-            print('Unexpected Error: Connection has closed')
+            print('Unexpected Error: Connection has closed and program is shutting down')
             close_connection()
             break
 
@@ -322,7 +322,7 @@ def input_handler():
 
     # End program if unexpected error occurs
     except Exception as E:
-        print('Unexpected Error: Connection has closed')
+        print('Unexpected Error: Connection has closed and program is shutting down')
         close_connection()
 
 # ==============================================================================================
@@ -355,5 +355,5 @@ try:
 
 # End program if unexpected error occurs
 except Exception as E:
-    print('Unexpected Error: Connection has closed')
+    print('Unexpected Error: Connection has closed and program is shutting down')
     close_connection()

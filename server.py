@@ -481,7 +481,7 @@ try:
 
 # End program if unexpected error occurs
 except Exception as E:
-    print('Unexpected Error: Connection has closed')
+    print('Unexpected Error: All connections have closed')
     print(E)
     close_all_connections()
     server.close()
