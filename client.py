@@ -296,12 +296,12 @@ def listen_for_message():
                         case _:
                             error_msg = message[-1]
                             print('{} Error: {}\n'.format(error_code, error_msg))
-                # Alerts server is unrecognized command is received
+                # Alerts server if unrecognized command is received
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     send_message(server, message)
 
-        # End program if unexpected error occurs     
+        # End program if unexpected error occurs    
         except Exception as E:
             print('Unexpected Error: Connection has closed')
             close_connection()

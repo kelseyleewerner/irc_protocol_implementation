@@ -352,31 +352,36 @@ def private_msg_handler(client, message):
         msg = 'ERROR:109:{}:This user does not exist'.format(target_user)
         send_message(client['socket'], msg)
 
-# This is what happens in an individual thread that listens for client messages and then forwards them
+# Function listens for messages from a client
+# and calls the message handler that corresponds to the command portion of the message
 def message_handler(connection):
     try:
-        # server must receive user name from client as part of initializing connection
+        # Server must receive user name from client as to finish initializing connection
         name_message, command = receive_message(connection)
         chat_name = name_message[-1]
 
-        # Error check client message before adding client to list of connected clients
+        # Error check client-selected user name before adding client to list of connected clients
         setting_user_name = True
         while setting_user_name:
             command_check = utilities.validate_command_semantics(command)
             param_check = utilities.validate_param_semantics(chat_name)
+            # Validate that command portion of message is correctly formatted
             if command_check != True:
                 send_message(connection, command_check)
                 name_message, command = receive_message(connection)
                 chat_name = name_message[-1]
+            # Validate that user name is correctly formatted
             elif param_check != True:
                 send_message(connection, param_check)
                 name_message, command = receive_message(connection)
                 chat_name = name_message[-1]
+            # Validate that correct NAME command was sent
             elif command != 'NAME':
                 msg = 'ERROR:106:Client not registered with server'
                 send_message(connection, msg)
                 name_message, command = receive_message(connection)
                 chat_name = name_message[-1]
+            # Validate that user name is unique
             elif find_client(chat_name) != -1:
                 msg = 'ERROR:105:Username already in use'
                 send_message(connection, msg)
@@ -385,12 +390,14 @@ def message_handler(connection):
             else:
                 setting_user_name = False
 
+    # End program if unexpected error occurs
     except Exception as E:
         print('Unexpected Error: Connection has closed')
         print(E)
         connection.close()
         return
 
+    # Client dictionary
     client = {
         'user_name': chat_name,
         'socket': connection,
@@ -401,21 +408,26 @@ def message_handler(connection):
     clients.append(client)
     print('New User: {}'.format(client['user_name']))
 
+    # Launch thread to send STILL_ALIVE messages to client
     thread = threading.Thread(target=send_keep_alive, args=(client,))
     thread.start()
 
+    # Launch thread to monitor if connection with client is being maintained
     sending_thread = threading.Thread(target=verify_keep_alive, args=(client,))
     sending_thread.start()
 
+    # After connection has finished initializing, listen for messages from the client
     while True:
         try:
             message, command = receive_message(client['socket'])
 
+            # Validate that command is correctly formatted
             command_check = utilities.validate_command_semantics(command)
             if command_check != True:
                 send_message(client['socket'], command_check)
                 continue
 
+            # Identify corresponding action for command portion of client message
             match command:
                 case 'STILL_ALIVE':
                     client['timestamp'] = datetime.now()
@@ -436,14 +448,17 @@ def message_handler(connection):
                     send_message(client['socket'], msg)
                     close_connection(client)
                     break
+                # Displays error messages received from client
                 case 'ERROR':
                     error_code = message[1]
                     error_msg = message[-1]
                     print('{} Error: {}'.format(error_code, error_msg))
+                # Alerts client if unrecognized command is received
                 case _:
                     msg = 'ERROR:100:Command is not included in the list of approved commands'
                     send_message(client['socket'], msg)
 
+        # End program if unexpected error occurs
         except Exception as E:
             print('Unexpected Error: Connection has closed')
             print(E)
@@ -460,7 +475,7 @@ try:
         connection, address = server.accept()
         print('Connected with {}'.format(str(address)))
 
-        # Create a thread for each client TCP connection
+        # Launch a thread for each client TCP connection
         thread = threading.Thread(target=message_handler, args=(connection,))
         thread.start()
 
