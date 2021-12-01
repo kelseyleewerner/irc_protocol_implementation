@@ -1,10 +1,13 @@
 import socket
 import threading
-import utilities
 import time
+import utilities
 from datetime import datetime, timedelta
 
+
+
 HOST = '0.0.0.0'
+# Port number specified in protocol
 PORT = 2787
 
 
