@@ -4,15 +4,16 @@ import time
 import utilities
 from datetime import datetime, timedelta
 
+# ==============================================================================================
+#                                    Global Server State
+# ==============================================================================================
 
-
+# IP address of local host
 HOST = '0.0.0.0'
 # Port number specified in protocol
 PORT = 2787
 
-
-
-# List of TCP connections to different clients
+# List of TCP connections to all active clients
 # Each connection in the list is a dictionary with the following format:
 # {
 #     'user_name': String,
@@ -30,17 +31,43 @@ clients = []
 # }
 chat_rooms = []
 
-
-# TODO: add comments
+# Listen for incoming TCP connection requests
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
 server.listen(1)
 print('IRC Server is listening...')
 
+# ==============================================================================================
+#                               Connection Maintenance Functions
+# ==============================================================================================
 
-# find a specific socket in the list of client TCP connections
-# Returns connection object if user is found in list
-# Return -1 if lst is empty or if user not found in list
+# Terminate client TCP connection with individual client
+# Takes client dictionary as argument
+def close_connection(client):
+    client['alive'] = False
+    # Remove client from list of active clients
+    index = find_client(client['user_name'])
+    clients.pop(index)
+
+    # Remove client from any chat rooms where they are a member
+    for room in chat_rooms:
+        if client['user_name'] in room['members']:
+            room['members'].remove(client['user_name'])
+
+    client['socket'].close()
+    print('{} has left'.format(client['user_name']))
+
+# Terminate client TCP connection with all clients
+def close_all_connections():
+    for client in clients:
+        msg = 'QUIT'
+        send_message(client['socket'], msg)
+        client['socket'].close()
+
+# Find a specific client socket in the list of client TCP connections using the user name passed as an argument
+# If client is found, returns Integer index of client in list of clients
+# Returns -1 if clients list is empty or if user not found in list
+# Takes String as argument
 def find_client(user_name):
     if not clients:
         return -1
@@ -49,51 +76,90 @@ def find_client(user_name):
             return index
     return -1
 
-
+# Find a specific chat room in the list of chat rooms using the room name passed as an argument
+# If chat room is found, returns Integer index of room in list of chat rooms
+# Returns -1 if chat rooms list is empty or if room not found in list
+# Takes String as argument
 def find_chat_room(room_name):
     room_found = False
     room_index = 0
+
     for room in chat_rooms:
         if room['room_name'] == room_name:
             room_found = True
             break
         room_index += 1
+
     if room_found:
         return room_index
     else:
         return -1
 
-def receive_message(connection):
-    message = connection.recv(1024).decode()
+# Function sends STILL_ALIVE messages to client passed as argument to ensure this client knows that the connection is still alive
+# Takes client dictionary as argument
+def send_keep_alive(client):
+    try:
+        while True:
+            # Stop sending messages if connection closes
+            if not client['alive']:
+                break
+            msg = 'STILL_ALIVE'
+            send_message(client['socket'], msg)
+            # Wait 5 seconds in between each STILL_ALIVE message
+            time.sleep(5)
+
+    # End program if unexpected error occurs
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection(client)
+
+# Function verifies that STILL_ALIVE messages are being received from the client passed as an argument within the timeout window
+# Takes client dictionary as argument
+def verify_keep_alive(client):
+    try:
+        alive_window = timedelta(seconds = 10)
+
+        while True:
+            # Wait 10 seconds in between checking timestamp from last STILL_ALIVE message
+            time.sleep(10)
+            # Stop checking messages if connection closes
+            if not client['alive']:
+                break
+
+            # If STILL_ALIVE message is not received from client within the last 10 seconds,
+            # then the server assumes client is down and ends the program
+            window_start = datetime.now() - alive_window
+            if client['timestamp'] < window_start:
+                print('Unexpected Error: Client is no longer online')
+                close_connection(client)
+                break
+
+    # End program if unexpected error occurs
+    except Exception as E:
+        print('Unexpected Error: Connection has closed')
+        close_connection(client)
+
+# ==============================================================================================
+#                                    Message Handlers
+# ==============================================================================================
+
+# Send encoded message to client over TCP connection
+# Takes a socket object and a String as arguments
+def send_message(client_socket, msg):
+    client_socket.send(msg.encode())
+
+# Receives and parses encoded message from client socket
+# Returns the parsed message as a List of Strings and the command portion of the message as a String
+# Takes socket object as argument
+def receive_message(client_socket):
+    message = client_socket.recv(1024).decode()
     message = message.split(':')
     command = message[0]
     return message, command
 
-
-def send_message(client_socket, msg):
-    client_socket.send(msg.encode())
-
-
-def close_connection(client):
-    client['alive'] = False
-    index = find_client(client['user_name'])
-    clients.pop(index)
-
-    for room in chat_rooms:
-        if client['user_name'] in room['members']:
-            room['members'].remove(client['user_name'])
-
-    client['socket'].close()
-    print('{} has left'.format(client['user_name']))
-
-
-def close_all_connections():
-    for client in clients:
-        msg = 'QUIT'
-        send_message(client['socket'], msg)
-        client['socket'].close()
-
-
+# Function creates new chat room or adds user to existing chat room based on the room name received from the client
+# Called in response to receiving JOIN message from a client
+# Takes client dictionary and List of Strings as argument
 def join_msg_handler(client, message):
     room_name = message[-1]
     # Validate that room name is correctly formatted
@@ -102,7 +168,7 @@ def join_msg_handler(client, message):
         send_message(client['socket'], param_check)
         return
 
-    # If room already in list of chat rooms, add user to the existing room
+    # If room is already in list of chat rooms, add user to the existing room
     create_room = True
     for room in chat_rooms:
         if room['room_name'] == room_name:
@@ -124,7 +190,11 @@ def join_msg_handler(client, message):
     msg = 'JOIN_RESPONSE:{}'.format(room_name)
     send_message(client['socket'], msg)
 
+# Function sends list of chat rooms to requesting user
+# Called in response to receiving ROOMS message from a client
+# Takes client dictionary as argument
 def rooms_msg_handler(client):
+    # Sends empty ROOMS_RESPONSE message to client if no chat rooms have been created
     if not chat_rooms:
         msg = 'ROOMS_RESPONSE: '
         send_message(client['socket'], msg)
@@ -136,7 +206,9 @@ def rooms_msg_handler(client):
         msg = 'ROOMS_RESPONSE:{}'.format(rooms)
         send_message(client['socket'], msg)
 
-
+# Function sends member list of a chat room to requesting user
+# Called in response to receiving USERS message from a client
+# Takes client dictionary and List of Strings as argument
 def users_msg_handler(client, message):
     room_name = message[-1]
     # Validate that room name is correctly formatted
@@ -145,6 +217,7 @@ def users_msg_handler(client, message):
         send_message(client['socket'], param_check)
         return
 
+    # Sends error message to client if no chat rooms have been created
     if not chat_rooms:
         msg = 'ERROR:107:{}:This chat room does not exist'.format(room_name)
         send_message(client['socket'], msg)
@@ -152,6 +225,7 @@ def users_msg_handler(client, message):
         room_index = find_chat_room(room_name)
 
         if room_index > -1:
+            # Sends empty USERS_RESPONSE message to client if requested chat room doesn't have any members
             if not chat_rooms[room_index]['members']:
                 msg = 'USERS_RESPONSE:{}: '.format(room_name)
                 send_message(client['socket'], msg)
@@ -162,10 +236,14 @@ def users_msg_handler(client, message):
                 members = ' '.join(members)
                 msg = 'USERS_RESPONSE:{}:{}'.format(room_name, members)
                 send_message(client['socket'], msg)
+        # Sends error message to client if requested room has not been created
         else:
             msg = 'ERROR:107:{}:This chat room does not exist'.format(room_name)
             send_message(client['socket'], msg)
 
+# Function removes requesting user from chat room
+# Called in response to receiving LEAVE message from a client
+# Takes client dictionary and List of Strings as argument
 def leave_msg_handler(client, message):
     room_name = message[-1]
     # Validate that room name is correctly formatted
@@ -174,19 +252,23 @@ def leave_msg_handler(client, message):
         send_message(client['socket'], param_check)
         return
 
+    # Send confirmation message to client even if chat rooms list is empty
     if not chat_rooms:
         msg = 'LEAVE_RESPONSE:{}'.format(room_name)
         send_message(client['socket'], msg)
     else:
         room_index = find_chat_room(room_name)
-
         if room_index > -1:
             if client['user_name'] in chat_rooms[room_index]['members']:
                 chat_rooms[room_index]['members'].remove(client['user_name'])
+        # Send confirmation message to client even if user wasn't a member of room prior to LEAVE request
+        # or if room doesn't exist in list of chat rooms
         msg = 'LEAVE_RESPONSE:{}'.format(room_name)
         send_message(client['socket'], msg)
 
-
+# Function broadcasts message body received from a user to all members of a chat room
+# Called in response to receiving MESSAGE message from a client
+# Takes client dictionary and List of Strings as argument
 def chat_msg_handler(client, message):
     room_name = message[1]
     # Validate that room name is correctly formatted
@@ -195,6 +277,7 @@ def chat_msg_handler(client, message):
         send_message(client['socket'], param_check)
         return
 
+    # Properly format a message body that contains colons
     if len(message) > 3:
         message_body = ':'.join(message[2:])
     else:
@@ -205,6 +288,7 @@ def chat_msg_handler(client, message):
         send_message(client['socket'], payload_check)
         return
 
+    # Sends error message to client if no chat rooms have been created
     if not chat_rooms:
         msg = 'ERROR:107:{}:This chat room does not exist'.format(room_name)
         send_message(client['socket'], msg)
@@ -213,20 +297,26 @@ def chat_msg_handler(client, message):
 
         if room_index > -1:
             if client['user_name'] in chat_rooms[room_index]['members']:
+                # Finds the socket that corresponds to the user name of each member in the chat room
+                # and broadcasts message body to all members
                 for member in chat_rooms[room_index]['members']:
                     for connection in clients:
                         if connection['user_name'] == member:
                             msg = 'MESSAGE:{}:{}:{}'.format(room_name, client['user_name'], message_body)
                             send_message(connection['socket'], msg)
                             break
+            # Sends error message to client if they are not a member of the requested chat room
             else:
                 msg = 'ERROR:108:{}:User is not a member of this chat room'.format(room_name)
                 send_message(client['socket'], msg)
+        # Sends error message to client if requested chat room has not been created
         else:
             msg = 'ERROR:107:{}:This chat room does not exist'.format(room_name)
             send_message(client['socket'], msg)
 
-
+# Function forwards messages body to a user directly from another user
+# Called in response to receiving MESSAGE_USER message from a client
+# Takes client dictionary and List of Strings as argument
 def private_msg_handler(client, message):
     target_user = message[1]
     # Validate that target username is correctly formatted
@@ -235,6 +325,7 @@ def private_msg_handler(client, message):
         send_message(client['socket'], param_check)
         return
 
+    # Properly format a message body that contains colons
     if len(message) > 3:
         message_body = ':'.join(message[2:])
     else:
@@ -247,55 +338,20 @@ def private_msg_handler(client, message):
 
     client_index = find_client(target_user)
     if client_index > -1:
+        # Sends message to recipient user name requested by client sender
         msg = 'MESSAGE_USER:{}:{}:{}'.format(target_user, client['user_name'], message_body)
         send_message(clients[client_index]['socket'], msg)
+        # Send confirmation MESSAGE_USER message to sending user
+        # If user sent a message to themselves, then the initial MESSAGE_USER response will serve as confirmation
+        # and a duplicate MESSAGE_USER confirmation is not needed
         if client['user_name'] != clients[client_index]['user_name']:
             msg = 'MESSAGE_USER:{}:{}:{}'.format(target_user, client['user_name'], message_body)
             send_message(client['socket'], msg)
+    # Sends error message to client if requested recipient user name is not connected to the server
     else:
         msg = 'ERROR:109:{}:This user does not exist'.format(target_user)
         send_message(client['socket'], msg)
 
-
-
-def send_keep_alive(client):
-    try:
-        while True:
-            if not client['alive']:
-                break
-            msg = 'STILL_ALIVE'
-            send_message(client['socket'], msg)
-            time.sleep(5)
-
-    except Exception as E:
-        print('Unexpected Error: Connection has closed')
-        close_connection(client)
-
-
-
-def verify_keep_alive(client):
-    try:
-        alive_window = timedelta(seconds = 10)
-
-        while True:
-            time.sleep(10)
-            if not client['alive']:
-                break
-
-            window_start = datetime.now() - alive_window
-
-            if client['timestamp'] < window_start:
-                print('Unexpected Error: Client is no longer online')
-                close_connection(client)
-                break
-
-    except Exception as E:
-        print('Unexpected Error: Connection has closed')
-        close_connection(client)
-
-
-
-# TODO: rename
 # This is what happens in an individual thread that listens for client messages and then forwards them
 def message_handler(connection):
     try:
@@ -394,20 +450,21 @@ def message_handler(connection):
             close_connection(client)
             break
 
-# listening for tcp connections
-def listen_for_connect_reqs():
+# ==============================================================================================
+#                                       Server Program
+# ==============================================================================================
+
+try:
     while True:
-        # server accepts connection from client
+        # Listen for TCP connection requests from clients
         connection, address = server.accept()
         print('Connected with {}'.format(str(address)))
 
-        # creating a thread for each client TCP connection
+        # Create a thread for each client TCP connection
         thread = threading.Thread(target=message_handler, args=(connection,))
         thread.start()
 
-# Running server and catching all unexpected/unhandled errors
-try:
-    listen_for_connect_reqs()
+# End program if unexpected error occurs
 except Exception as E:
     print('Unexpected Error: Connection has closed')
     print(E)

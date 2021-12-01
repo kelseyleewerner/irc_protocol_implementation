@@ -31,7 +31,7 @@ server.connect((HOST, PORT))
 #                               Connection Maintenance Functions
 # ==============================================================================================
 
-# Close client connection with server
+# Terminate client TCP connection with server
 def close_connection():
     connection_status['alive'] = False
     server.close()
@@ -111,7 +111,7 @@ def verify_keep_alive():
 # ==============================================================================================
 
 # Send encoded message to server over TCP connection
-# Takes a socket object and a string as arguments
+# Takes a socket object and a String as arguments
 def send_message(server_socket, msg):
     server_socket.send(msg.encode())
 
@@ -177,7 +177,7 @@ def leave_response_msg_handler(message):
         return
     print('You are no longer a member of {}\n'.format(room_name))
 
-# Function displays messages sent to a chat room where the user is a member
+# Function displays chat messages sent to a chat room where the user is a member
 # Called in response to receiving MESSAGE message from the server
 # Takes List of Strings as argument
 def chat_msg_handler(message):
@@ -195,6 +195,7 @@ def chat_msg_handler(message):
         send_message(server, param_check)
         return
 
+    # Properly format a message body that contains colons
     if len(message) > 4:
         message_body = ':'.join(message[3:])
     else:
@@ -210,8 +211,8 @@ def chat_msg_handler(message):
     print(message_body)
     print('')
 
-
-# Called in response to receiving MESSAGE message from the server
+# Function displays chat messages sent to a user directly from another user
+# Called in response to receiving MESSAGE_USER message from the server
 # Takes List of Strings as argument
 def private_msg_handler(message):
     receiving_user = message[1]
@@ -243,24 +244,23 @@ def private_msg_handler(message):
     print(message_body)
     print('')
 
-
-
-
-
-
-# listening for chat messages and keepalive messages from server
+# Function listens for messages from the server 
+# and calls the message handler that corresponds to the command portion of the message
 def listen_for_message():
     while True:
         try:
+            # Parses encoded message from server
             message = server.recv(1024).decode()
             message = message.split(':')
             command = message[0]
 
+            # Validate that command is correctly formatted
             command_check = utilities.validate_command_semantics(command)
             if command_check != True:
                 send_message(server, command_check)
                 continue
 
+            # Identify corresponding action for command portion of server message
             match command:
                 case 'STILL_ALIVE':
                     connection_status['timestamp'] = datetime.now()
@@ -280,6 +280,7 @@ def listen_for_message():
                 case 'QUIT':
                     close_connection()
                     break
+                # Displays error messages received from server
                 case 'ERROR':
                     error_code = message[1]
                     match error_code:
@@ -295,6 +296,7 @@ def listen_for_message():
                         case _:
                             error_msg = message[-1]
                             print('{} Error: {}\n'.format(error_code, error_msg))
+                # Alerts server is unrecognized command is received
                 case _:
                     message = 'ERROR:100:Command is not included in the list of approved commands'
                     send_message(server, message)
@@ -305,14 +307,17 @@ def listen_for_message():
             close_connection()
             break
 
-# sending messages
+# Collect user input and send to server
 def input_handler():
     try:
         while True:
             message = input('')
             print('')
+
+            # Stop collecting input if connection with server is severed
             if not connection_status['alive']:
                 break
+            
             send_message(server, message)
 
     # End program if unexpected error occurs
